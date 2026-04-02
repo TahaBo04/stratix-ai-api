@@ -1,6 +1,7 @@
 """Application settings for STRATIX AI."""
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -8,6 +9,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+
+def _default_database_path() -> str:
+    # Vercel Functions cannot write into the deployed project tree, so use /tmp
+    # unless an explicit DATABASE_PATH is provided in the project settings.
+    if os.getenv("VERCEL"):
+        return "/tmp/stratix_ai.db"
+    return str(BASE_DIR / "data" / "stratix_ai.db")
 
 
 class Settings(BaseSettings):
@@ -20,7 +29,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     secret_key: str = "change-me"
-    database_path: str = str(BASE_DIR / "data" / "stratix_ai.db")
+    database_path: str = _default_database_path()
     datasets_dir: str = str(BASE_DIR / "datasets")
     openai_api_key: str | None = None
     openai_model_primary: str = "gpt-5.4-mini"

@@ -18,6 +18,39 @@ cp .env.example .env
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Deploying on Vercel
+This repository now includes the Vercel-specific files needed for a first deployment:
+- `vercel.json`
+- `app/index.py`
+- `.python-version`
+
+Use these Vercel project settings:
+- Framework Preset: `FastAPI` or auto-detected Python/FastAPI
+- Root Directory: leave blank when deploying this repo directly
+- Build Command: leave blank
+- Install Command: leave blank
+- Output Directory: leave blank
+
+Recommended environment variables:
+```env
+APP_ENV=production
+SECRET_KEY=replace_with_a_long_random_secret
+OPENAI_API_KEY=your_openai_key
+OPENAI_MODEL_PRIMARY=gpt-5.4-mini
+OPENAI_MODEL_FALLBACK=gpt-5.4
+OPENAI_REQUEST_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=2
+CORS_ORIGINS=https://your-frontend.vercel.app
+DEFAULT_DEMO_USER_EMAIL=demo@stratix.ai
+DEFAULT_DEMO_USER_PASSWORD=demo-password
+```
+
+Deployment notes:
+- On Vercel, the backend will automatically fall back to `/tmp/stratix_ai.db` unless `DATABASE_PATH` is explicitly set.
+- The seed datasets under `datasets/` are read-only inputs and can still be bundled for demo usage.
+- This is suitable for a demo or small MVP, but not ideal for long-running or high-volume backtests because Vercel Functions have request-time limits and ephemeral storage.
+- For a more durable production setup, move the database to Postgres and market data to object storage.
+
 ## API overview
 - `POST /v1/auth/register`
 - `POST /v1/auth/login`
