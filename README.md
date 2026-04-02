@@ -20,9 +20,11 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## Deploying on Vercel
 This repository now includes the Vercel-specific files needed for a first deployment:
-- `vercel.json`
 - `app/index.py`
 - `.python-version`
+
+Vercel's current FastAPI runtime supports zero-configuration entrypoints such as
+`app/index.py`, so `vercel.json` is intentionally omitted here.
 
 Use these Vercel project settings:
 - Framework Preset: `FastAPI` or auto-detected Python/FastAPI
