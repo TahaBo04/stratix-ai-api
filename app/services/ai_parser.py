@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.schemas.strategy import (
     AssetSpec,
     ConditionNode,
@@ -23,12 +24,15 @@ from app.services.catalog import ASSETS, SUPPORTED_OPERATORS, SUPPORTED_TIMEFRAM
 from app.services.strategy_validator import validate_strategy_spec
 
 
-PROMPT_VERSION = "0.1.0"
+PROMPT_VERSION = "0.2.0"
+logger = get_logger(__name__)
 SYSTEM_PROMPT = """
 You are STRATIX AI's deterministic strategy parser.
 Convert natural-language trading ideas into the provided StrategySpec schema.
 Use only supported indicators, operators, assets, and timeframes.
-If the prompt is incomplete or ambiguous, set status to needs_clarification and populate missing_fields.
+If the prompt is incomplete or ambiguous, keep unsupported fields null, set status to needs_clarification, and populate missing_fields.
+Never invent symbols, indicators, operators, or timeframes outside the supplied catalogs.
+Do not produce executable code.
 Do not emit freeform text outside the schema.
 """.strip()
 
@@ -36,14 +40,28 @@ Do not emit freeform text outside the schema.
 def interpret_prompt(prompt: str) -> InterpretStrategyResponse:
     settings = get_settings()
     if settings.openai_api_key:
-        try:
-            spec = _finalize_spec(_interpret_with_openai(prompt))
-            validation = validate_strategy_spec(spec)
-            spec.status = "valid" if validation.is_valid else "needs_clarification"
-            spec.missing_fields = validation.missing_fields
-            return InterpretStrategyResponse(spec=spec, validation=validation, source="openai")
-        except Exception:
-            pass
+        attempted_models: list[str] = []
+        for model_name in (settings.openai_model_primary, settings.openai_model_fallback):
+            if not model_name or model_name in attempted_models:
+                continue
+            attempted_models.append(model_name)
+            try:
+                spec = _finalize_spec(_interpret_with_openai(prompt, model_name))
+                validation = validate_strategy_spec(spec)
+                spec.status = "valid" if validation.is_valid else "needs_clarification"
+                spec.missing_fields = validation.missing_fields
+                if model_name != settings.openai_model_primary:
+                    logger.warning("strategy_parse_used_fallback_model model=%s", model_name)
+                return InterpretStrategyResponse(spec=spec, validation=validation, source="openai")
+            except Exception as exc:
+                logger.warning(
+                    "strategy_parse_openai_failed model=%s error=%s",
+                    model_name,
+                    exc,
+                    exc_info=(type(exc), exc, exc.__traceback__),
+                )
+
+        logger.warning("strategy_parse_falling_back_to_heuristic attempted_models=%s", attempted_models)
 
     spec = _finalize_spec(_heuristic_parse(prompt))
     validation = validate_strategy_spec(spec)
@@ -52,13 +70,13 @@ def interpret_prompt(prompt: str) -> InterpretStrategyResponse:
     return InterpretStrategyResponse(spec=spec, validation=validation, source="heuristic")
 
 
-def _interpret_with_openai(prompt: str) -> StrategySpec:
+def _interpret_with_openai(prompt: str, model_name: str) -> StrategySpec:
     settings = get_settings()
     from openai import OpenAI
 
     client = OpenAI(api_key=settings.openai_api_key, timeout=settings.openai_request_timeout_seconds, max_retries=settings.openai_max_retries)
     response = client.responses.parse(
-        model=settings.openai_model_primary,
+        model=model_name,
         input=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
