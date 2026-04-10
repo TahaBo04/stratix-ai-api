@@ -49,11 +49,7 @@ def run_backtest(strategy: CompiledStrategy, frame: pd.DataFrame, initial_capita
             if exit_fill is not None:
                 raw_exit_price, reason = exit_fill
                 exit_price = _apply_exit_costs(position.side, raw_exit_price, slippage_bps)
-                gross_exit = position.qty * exit_price
-                exit_fee = gross_exit * fees_bps / 10_000
-                net_exit = gross_exit - exit_fee
-                pnl = net_exit - position.invested_capital
-                cash = net_exit
+                cash, pnl = _realize_position(position, exit_price, fees_bps)
                 trades.append(
                     {
                         "id": str(uuid4()),
@@ -101,11 +97,7 @@ def run_backtest(strategy: CompiledStrategy, frame: pd.DataFrame, initial_capita
         last_row = working.iloc[-1]
         exit_price = _apply_exit_costs(position.side, float(last_row["close"]), slippage_bps)
         reason = "end_of_data"
-        gross_exit = position.qty * exit_price
-        exit_fee = gross_exit * fees_bps / 10_000
-        net_exit = gross_exit - exit_fee
-        pnl = net_exit - position.invested_capital
-        cash = net_exit
+        cash, pnl = _realize_position(position, exit_price, fees_bps)
         trades.append(
             {
                 "id": str(uuid4()),
@@ -146,6 +138,17 @@ def run_backtest(strategy: CompiledStrategy, frame: pd.DataFrame, initial_capita
         "equity_curve": equity_points,
         "price_series": price_rows,
     }
+
+
+def _realize_position(position: Position, exit_price: float, fees_bps: float) -> tuple[float, float]:
+    exit_notional = position.qty * exit_price
+    exit_fee = exit_notional * fees_bps / 10_000
+    direction_pnl = (exit_price - position.entry_price) * position.qty
+    if position.side == "short":
+        direction_pnl *= -1
+    final_equity = position.invested_capital + direction_pnl - exit_fee
+    pnl = final_equity - position.invested_capital
+    return final_equity, pnl
 
 
 def _compute_risk_prices(direction: str, entry_price: float, risk: dict) -> tuple[float | None, float | None]:
