@@ -13,6 +13,7 @@ def create_run(strategy_version_id: str, *, asset_symbol: str, asset_class: str,
         "id": str(uuid4()),
         "strategy_version_id": strategy_version_id,
         "status": "queued",
+        "error_message": None,
         "asset_symbol": asset_symbol,
         "asset_class": asset_class,
         "market": market,
@@ -30,13 +31,14 @@ def create_run(strategy_version_id: str, *, asset_symbol: str, asset_class: str,
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO backtest_runs (id, strategy_version_id, status, asset_symbol, asset_class, market, timeframe, date_start, date_end, initial_capital, fees_bps, slippage_bps, summary_json, created_at, started_at, completed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO backtest_runs (id, strategy_version_id, status, error_message, asset_symbol, asset_class, market, timeframe, date_start, date_end, initial_capital, fees_bps, slippage_bps, summary_json, created_at, started_at, completed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["id"],
                 payload["strategy_version_id"],
                 payload["status"],
+                payload["error_message"],
                 payload["asset_symbol"],
                 payload["asset_class"],
                 payload["market"],
@@ -60,18 +62,21 @@ def update_run_status(run_id: str, status: str, error_message: str | None = None
     completed_at = datetime.now(timezone.utc).isoformat() if status in {"completed", "failed"} else None
     with get_connection() as conn:
         if started_at:
-            conn.execute("UPDATE backtest_runs SET status = ?, started_at = ? WHERE id = ?", (status, started_at, run_id))
+            conn.execute("UPDATE backtest_runs SET status = ?, error_message = NULL, started_at = ? WHERE id = ?", (status, started_at, run_id))
         elif completed_at:
-            conn.execute("UPDATE backtest_runs SET status = ?, completed_at = ? WHERE id = ?", (status, completed_at, run_id))
+            conn.execute("UPDATE backtest_runs SET status = ?, error_message = ?, completed_at = ? WHERE id = ?", (status, error_message, completed_at, run_id))
         else:
-            conn.execute("UPDATE backtest_runs SET status = ? WHERE id = ?", (status, run_id))
+            conn.execute("UPDATE backtest_runs SET status = ?, error_message = ? WHERE id = ?", (status, error_message, run_id))
     if error_message is not None:
         create_job_log(job_type="backtest", entity_id=run_id, status=status, error_message=error_message)
 
 
 def save_run_results(run_id: str, summary: dict, trades: list[dict], equity_curve: list[dict]) -> None:
     with get_connection() as conn:
-        conn.execute("UPDATE backtest_runs SET summary_json = ?, status = ?, completed_at = ? WHERE id = ?", (json.dumps(summary), "completed", datetime.now(timezone.utc).isoformat(), run_id))
+        conn.execute(
+            "UPDATE backtest_runs SET summary_json = ?, status = ?, error_message = NULL, completed_at = ? WHERE id = ?",
+            (json.dumps(summary), "completed", datetime.now(timezone.utc).isoformat(), run_id),
+        )
         conn.execute("DELETE FROM backtest_trades WHERE run_id = ?", (run_id,))
         conn.execute("DELETE FROM equity_points WHERE run_id = ?", (run_id,))
         for trade in trades:

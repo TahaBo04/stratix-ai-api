@@ -56,6 +56,7 @@ SCHEMA = [
         id TEXT PRIMARY KEY,
         strategy_version_id TEXT NOT NULL,
         status TEXT NOT NULL,
+        error_message TEXT,
         asset_symbol TEXT NOT NULL,
         asset_class TEXT NOT NULL,
         market TEXT NOT NULL,
@@ -133,6 +134,7 @@ def init_db() -> None:
             conn.execute(statement)
         _ensure_user_columns(conn)
         _ensure_user_preference_columns(conn)
+        _ensure_backtest_run_columns(conn)
         conn.commit()
 
 
@@ -177,3 +179,11 @@ def _ensure_user_preference_columns(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE user_preferences ADD COLUMN created_at TEXT NOT NULL DEFAULT ''")
     if "updated_at" not in columns:
         conn.execute("ALTER TABLE user_preferences ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''")
+
+
+def _ensure_backtest_run_columns(conn: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(backtest_runs)").fetchall()}
+    if not columns:
+        return
+    if "error_message" not in columns:
+        conn.execute("ALTER TABLE backtest_runs ADD COLUMN error_message TEXT")

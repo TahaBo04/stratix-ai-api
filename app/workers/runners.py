@@ -1,6 +1,7 @@
 """Background task runners."""
 from __future__ import annotations
 
+from app.core.logging import get_logger
 from app.repositories.backtests import create_job_log, get_run, save_run_results, update_run_status
 from app.repositories.strategies import get_version
 from app.schemas.strategy import StrategySpec
@@ -8,6 +9,9 @@ from app.services.backtest_engine import run_backtest
 from app.services.market_data import load_bars
 from app.services.results_serializer import serialize_trade_markers
 from app.services.strategy_compiler import compile_strategy
+
+
+logger = get_logger(__name__)
 
 
 def run_backtest_job(run_id: str) -> None:
@@ -29,5 +33,5 @@ def run_backtest_job(run_id: str) -> None:
         create_job_log(job_type="backtest", entity_id=run_id, status="completed")
     except Exception as exc:
         update_run_status(run_id, "failed", str(exc))
-        create_job_log(job_type="backtest", entity_id=run_id, status="failed", error_message=str(exc))
+        logger.error("backtest_job_failed run_id=%s error=%s", run_id, exc, exc_info=(type(exc), exc, exc.__traceback__))
         raise
