@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.v1.deps import get_current_user
+from app.core.config import get_settings
 from app.repositories.backtests import create_run, get_equity_curve, get_run, get_trades, list_history
 from app.repositories.strategies import get_latest_version, get_strategy, get_version
 from app.schemas.backtests import BacktestCreateRequest, BacktestResultResponse, BacktestRunResponse, HistoryItem
@@ -23,6 +24,7 @@ from app.workers.jobs import enqueue_backtest
 
 
 router = APIRouter(tags=["backtests"])
+settings = get_settings()
 
 
 @router.post("/v1/strategies/{strategy_id}/backtests", response_model=BacktestRunResponse)
@@ -47,6 +49,10 @@ def create_backtest(strategy_id: str, payload: BacktestCreateRequest, current_us
         slippage_bps=payload.slippage_bps,
     )
     enqueue_backtest(run["id"])
+    if settings.backtest_execution_mode == "inline":
+        refreshed_run = get_run(run["id"])
+        if refreshed_run is not None:
+            run = refreshed_run
     return _serialize_run(run)
 
 
@@ -136,6 +142,7 @@ def _serialize_run(run: dict) -> BacktestRunResponse:
         id=run["id"],
         strategy_version_id=run["strategy_version_id"],
         status=run["status"],
+        error_message=run.get("error_message"),
         asset_symbol=run["asset_symbol"],
         asset_class=run["asset_class"],
         market=run["market"],

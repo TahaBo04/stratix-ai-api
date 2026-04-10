@@ -42,6 +42,7 @@ OPENAI_MODEL_PRIMARY=gpt-5.4-mini
 OPENAI_MODEL_FALLBACK=gpt-5.4
 OPENAI_REQUEST_TIMEOUT_SECONDS=30
 OPENAI_MAX_RETRIES=2
+BACKTEST_EXECUTION_MODE=inline
 CORS_ORIGINS=https://your-frontend.vercel.app
 DEFAULT_DEMO_USER_EMAIL=demo@stratix.ai
 DEFAULT_DEMO_USER_PASSWORD=demo-password
@@ -49,6 +50,7 @@ DEFAULT_DEMO_USER_PASSWORD=demo-password
 
 Deployment notes:
 - On Vercel, the backend will automatically fall back to `/tmp/stratix_ai.db` unless `DATABASE_PATH` is explicitly set.
+- On Vercel Hobby, prefer `BACKTEST_EXECUTION_MODE=inline`; in-process thread queues are not durable across serverless invocations.
 - The seed datasets under `datasets/` are read-only inputs and can still be bundled for demo usage.
 - This is suitable for a demo or small MVP, but not ideal for long-running or high-volume backtests because Vercel Functions have request-time limits and ephemeral storage.
 - For a more durable production setup, move the database to Postgres and market data to object storage.

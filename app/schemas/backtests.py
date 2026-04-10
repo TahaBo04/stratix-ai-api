@@ -57,6 +57,7 @@ class BacktestRunResponse(BaseModel):
     id: str
     strategy_version_id: str
     status: str
+    error_message: str | None = None
     asset_symbol: str
     asset_class: str
     market: str

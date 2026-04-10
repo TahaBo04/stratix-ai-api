@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +18,12 @@ def _default_database_path() -> str:
     if os.getenv("VERCEL"):
         return "/tmp/stratix_ai.db"
     return str(BASE_DIR / "data" / "stratix_ai.db")
+
+
+def _default_backtest_execution_mode() -> str:
+    if os.getenv("VERCEL"):
+        return "inline"
+    return "threadpool"
 
 
 class Settings(BaseSettings):
@@ -36,6 +43,8 @@ class Settings(BaseSettings):
     openai_model_fallback: str = "gpt-5.4"
     openai_request_timeout_seconds: int = 30
     openai_max_retries: int = 2
+    backtest_execution_mode: Literal["threadpool", "inline"] = _default_backtest_execution_mode()
+    log_level: str = "INFO"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     default_demo_user_email: str = "demo@stratix.ai"
     default_demo_user_password: str = "demo-password"
