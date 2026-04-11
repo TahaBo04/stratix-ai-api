@@ -11,6 +11,7 @@ def build_metric_cards(summary: dict) -> list[MetricCard]:
         MetricCard(key="net_return_pct", label="Net Return", value=summary.get("net_return_pct", 0.0), display_value=f"{summary.get('net_return_pct', 0.0):.2f}%"),
         MetricCard(key="max_drawdown_pct", label="Max Drawdown", value=summary.get("max_drawdown_pct", 0.0), display_value=f"{summary.get('max_drawdown_pct', 0.0):.2f}%"),
         MetricCard(key="profit_factor", label="Profit Factor", value=summary.get("profit_factor", 0.0), display_value=f"{summary.get('profit_factor', 0.0):.2f}"),
+        MetricCard(key="sharpe_ratio", label="Sharpe", value=summary.get("sharpe_ratio", 0.0), display_value=f"{summary.get('sharpe_ratio', 0.0):.2f}"),
         MetricCard(key="trade_count", label="Trades", value=float(summary.get("trade_count", 0)), display_value=str(summary.get("trade_count", 0))),
     ]
 

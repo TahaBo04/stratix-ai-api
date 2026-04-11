@@ -1,6 +1,7 @@
 """Prompt interpretation using OpenAI structured outputs with a heuristic fallback."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import datetime
@@ -24,7 +25,7 @@ from app.services.catalog import ASSETS, SUPPORTED_OPERATORS, SUPPORTED_TIMEFRAM
 from app.services.strategy_validator import validate_strategy_spec
 
 
-PROMPT_VERSION = "0.2.0"
+PROMPT_VERSION = "0.3.0"
 logger = get_logger(__name__)
 SYSTEM_PROMPT = """
 You are STRATIX AI's deterministic strategy parser.
@@ -39,6 +40,7 @@ Do not emit freeform text outside the schema.
 
 def interpret_prompt(prompt: str) -> InterpretStrategyResponse:
     settings = get_settings()
+    prompt_digest = _build_prompt_digest(prompt)
     if settings.openai_api_key:
         attempted_models: list[str] = []
         for model_name in (settings.openai_model_primary, settings.openai_model_fallback):
@@ -52,7 +54,7 @@ def interpret_prompt(prompt: str) -> InterpretStrategyResponse:
                 spec.missing_fields = validation.missing_fields
                 if model_name != settings.openai_model_primary:
                     logger.warning("strategy_parse_used_fallback_model model=%s", model_name)
-                return InterpretStrategyResponse(spec=spec, validation=validation, source="openai")
+                return InterpretStrategyResponse(spec=spec, validation=validation, source="openai", prompt_digest=prompt_digest)
             except Exception as exc:
                 logger.warning(
                     "strategy_parse_openai_failed model=%s error=%s",
@@ -67,7 +69,11 @@ def interpret_prompt(prompt: str) -> InterpretStrategyResponse:
     validation = validate_strategy_spec(spec)
     spec.status = "valid" if validation.is_valid else "needs_clarification"
     spec.missing_fields = validation.missing_fields
-    return InterpretStrategyResponse(spec=spec, validation=validation, source="heuristic")
+    return InterpretStrategyResponse(spec=spec, validation=validation, source="heuristic", prompt_digest=prompt_digest)
+
+
+def _build_prompt_digest(prompt: str) -> str:
+    return hashlib.sha256(prompt.strip().encode("utf-8")).hexdigest()[:12]
 
 
 def _interpret_with_openai(prompt: str, model_name: str) -> StrategySpec:

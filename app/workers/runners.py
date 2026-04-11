@@ -26,6 +26,8 @@ def run_backtest_job(run_id: str) -> None:
             raise RuntimeError("Strategy version not found")
         spec = StrategySpec.model_validate(version["spec_json"])
         compiled = compile_strategy(spec)
+        compiled.costs["fees_bps"] = float(run["fees_bps"])
+        compiled.costs["slippage_bps"] = float(run["slippage_bps"])
         frame = load_bars(run["asset_symbol"], run["timeframe"], run["date_start"], run["date_end"])
         result = run_backtest(compiled, frame, run["initial_capital"])
         result["summary"]["trade_markers"] = [marker.model_dump() for marker in serialize_trade_markers(result["trades"])]

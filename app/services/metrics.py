@@ -1,6 +1,9 @@
 """Metric helpers for backtest summaries."""
 from __future__ import annotations
 
+import math
+import statistics
+
 
 def summarize_trades(trades: list[dict], equity_curve: list[dict], initial_capital: float, final_equity: float) -> dict:
     trade_count = len(trades)
@@ -14,6 +17,7 @@ def summarize_trades(trades: list[dict], equity_curve: list[dict], initial_capit
     avg_loss = (sum(trade["pnl"] for trade in losses) / len(losses)) if losses else 0.0
     expectancy = sum(trade["pnl"] for trade in trades) / trade_count if trade_count else 0.0
     max_drawdown = max((point["drawdown_pct"] for point in equity_curve), default=0.0)
+    sharpe_ratio = _calculate_sharpe_ratio(equity_curve)
     return {
         "trade_count": trade_count,
         "win_rate": round(win_rate, 2),
@@ -21,6 +25,7 @@ def summarize_trades(trades: list[dict], equity_curve: list[dict], initial_capit
         "net_return_pct": round(((final_equity - initial_capital) / initial_capital) * 100, 2),
         "max_drawdown_pct": round(max_drawdown, 2),
         "profit_factor": round(profit_factor, 2),
+        "sharpe_ratio": round(sharpe_ratio, 2),
         "average_win": round(avg_win, 2),
         "average_loss": round(avg_loss, 2),
         "expectancy": round(expectancy, 2),
@@ -39,3 +44,18 @@ def _longest_streak(trades: list[dict], is_win: bool) -> int:
         else:
             current = 0
     return longest
+
+
+def _calculate_sharpe_ratio(equity_curve: list[dict]) -> float:
+    returns: list[float] = []
+    for previous, current in zip(equity_curve, equity_curve[1:]):
+        baseline = float(previous["equity"])
+        if baseline <= 0:
+            continue
+        returns.append((float(current["equity"]) - baseline) / baseline)
+    if len(returns) < 2:
+        return 0.0
+    stdev = statistics.pstdev(returns)
+    if stdev == 0:
+        return 0.0
+    return (statistics.fmean(returns) / stdev) * math.sqrt(len(returns))

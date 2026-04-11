@@ -132,6 +132,8 @@ def list_history(user_id: str) -> list[dict]:
     query = """
         SELECT s.id AS strategy_id,
                s.name AS strategy_name,
+               s.raw_prompt AS raw_prompt,
+               s.service_tier AS service_tier,
                r.id AS run_id,
                r.status AS status,
                r.created_at AS created_at,

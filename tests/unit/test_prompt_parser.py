@@ -10,6 +10,15 @@ def test_rsi_prompt_parses_into_strategy_spec():
     assert response.spec.exit_rule is not None
 
 
+def test_distinct_prompts_produce_distinct_prompt_digests_and_specs():
+    rsi_response = interpret_prompt("Buy when RSI < 30 and sell when RSI > 70 on BTCUSDT 1H with 1:2 risk reward")
+    crossover_response = interpret_prompt("Buy when EMA 9 crosses above EMA 21 and exit when EMA 9 crosses below EMA 21 on ETHUSDT 4H")
+
+    assert rsi_response.prompt_digest != crossover_response.prompt_digest
+    assert rsi_response.spec.asset.symbol != crossover_response.spec.asset.symbol
+    assert rsi_response.spec.name != crossover_response.spec.name
+
+
 def test_finalize_spec_clears_defaultable_missing_fields():
     spec = StrategySpec(
         status="needs_clarification",

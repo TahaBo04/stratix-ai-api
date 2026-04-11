@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 StrategyStatus = Literal["valid", "needs_clarification", "invalid"]
+ServiceTier = Literal["simple", "pro"]
 Direction = Literal["long", "short"]
 AssetClass = Literal["crypto", "forex", "stock", "commodity"]
 IndicatorType = Literal["RSI", "SMA", "EMA", "MACD", "BOLLINGER", "ATR"]
@@ -128,16 +129,19 @@ class InterpretStrategyResponse(BaseModel):
     spec: StrategySpec
     validation: StrategyValidationResult
     source: Literal["openai", "heuristic"]
+    prompt_digest: str
 
 
 class CreateStrategyRequest(BaseModel):
     raw_prompt: str = Field(min_length=5, max_length=4000)
     spec: StrategySpec
+    service_tier: ServiceTier = "simple"
 
 
 class UpdateStrategyRequest(BaseModel):
     raw_prompt: Optional[str] = None
     spec: Optional[StrategySpec] = None
+    service_tier: Optional[ServiceTier] = None
 
 
 class StrategyVersionResponse(BaseModel):
@@ -156,6 +160,7 @@ class StrategyResponse(BaseModel):
     user_id: str
     name: str
     raw_prompt: str
+    service_tier: ServiceTier
     status: StrategyStatus
     created_at: datetime
     latest_version: StrategyVersionResponse

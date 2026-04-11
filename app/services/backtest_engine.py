@@ -43,6 +43,7 @@ def run_backtest(strategy: CompiledStrategy, frame: pd.DataFrame, initial_capita
     for idx in range(1, len(working)):
         row = working.iloc[idx]
         timestamp = row["timestamp"].isoformat()
+        exited_this_bar = False
 
         if position is not None:
             exit_fill = _check_position_exit(position, strategy.direction, row, exit_signal.iloc[idx - 1], strategy)
@@ -65,8 +66,9 @@ def run_backtest(strategy: CompiledStrategy, frame: pd.DataFrame, initial_capita
                     }
                 )
                 position = None
+                exited_this_bar = True
 
-        if position is None and bool(entry_signal.iloc[idx - 1]):
+        if position is None and not exited_this_bar and bool(entry_signal.iloc[idx - 1]):
             entry_price = _apply_entry_costs(strategy.direction, float(row["open"]), slippage_bps)
             entry_fee = cash * fees_bps / 10_000
             invested = max(cash - entry_fee, 0.0)

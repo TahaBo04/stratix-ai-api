@@ -34,6 +34,7 @@ SCHEMA = [
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         raw_prompt TEXT NOT NULL,
+        service_tier TEXT NOT NULL DEFAULT 'simple',
         status TEXT NOT NULL,
         created_at TEXT NOT NULL
     )
@@ -134,6 +135,7 @@ def init_db() -> None:
             conn.execute(statement)
         _ensure_user_columns(conn)
         _ensure_user_preference_columns(conn)
+        _ensure_strategy_columns(conn)
         _ensure_backtest_run_columns(conn)
         conn.commit()
 
@@ -187,3 +189,11 @@ def _ensure_backtest_run_columns(conn: sqlite3.Connection) -> None:
         return
     if "error_message" not in columns:
         conn.execute("ALTER TABLE backtest_runs ADD COLUMN error_message TEXT")
+
+
+def _ensure_strategy_columns(conn: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(strategies)").fetchall()}
+    if not columns:
+        return
+    if "service_tier" not in columns:
+        conn.execute("ALTER TABLE strategies ADD COLUMN service_tier TEXT NOT NULL DEFAULT 'simple'")
