@@ -24,7 +24,7 @@ from app.schemas.strategy import (
     UpdateStrategyRequest,
 )
 from app.services.ai_parser import PROMPT_VERSION, interpret_prompt
-from app.services.strategy_codegen import CODEGEN_VERSION, generate_python_strategy
+from app.services.strategy_codegen import generate_python_strategy
 from app.services.strategy_compiler import COMPILER_VERSION
 from app.services.strategy_validator import validate_strategy_spec
 
@@ -42,7 +42,13 @@ def create_strategy_route(payload: CreateStrategyRequest, current_user: dict = D
     validation = validate_strategy_spec(payload.spec)
     payload.spec.status = "valid" if validation.is_valid else "needs_clarification"
     payload.spec.missing_fields = validation.missing_fields
-    strategy = create_strategy(user_id=current_user["id"], name=payload.spec.name, raw_prompt=payload.raw_prompt, status=payload.spec.status)
+    strategy = create_strategy(
+        user_id=current_user["id"],
+        name=payload.spec.name,
+        raw_prompt=payload.raw_prompt,
+        status=payload.spec.status,
+        service_tier=payload.service_tier,
+    )
     version = create_strategy_version(
         strategy_id=strategy["id"],
         version_no=1,
@@ -81,7 +87,13 @@ def update_strategy_route(strategy_id: str, payload: UpdateStrategyRequest, curr
     validation = validate_strategy_spec(spec)
     spec.status = "valid" if validation.is_valid else "needs_clarification"
     spec.missing_fields = validation.missing_fields
-    updated = update_strategy(strategy_id, name=spec.name, raw_prompt=raw_prompt, status=spec.status)
+    updated = update_strategy(
+        strategy_id,
+        name=spec.name,
+        raw_prompt=raw_prompt,
+        service_tier=payload.service_tier or strategy.get("service_tier", "simple"),
+        status=spec.status,
+    )
     assert updated is not None
     version = create_strategy_version(
         strategy_id=strategy_id,
@@ -107,6 +119,7 @@ def clone_strategy(strategy_id: str, current_user: dict = Depends(get_current_us
         user_id=current_user["id"],
         name=f"{strategy['name']} Copy",
         raw_prompt=strategy["raw_prompt"],
+        service_tier=strategy.get("service_tier", "simple"),
         status=strategy["status"],
     )
     cloned_version = create_strategy_version(
@@ -137,6 +150,7 @@ def _serialize_strategy(strategy: dict, version: dict) -> StrategyResponse:
         user_id=strategy["user_id"],
         name=strategy["name"],
         raw_prompt=strategy["raw_prompt"],
+        service_tier=strategy.get("service_tier", "simple"),
         status=strategy["status"],
         created_at=datetime.fromisoformat(strategy["created_at"]),
         latest_version=version_response,

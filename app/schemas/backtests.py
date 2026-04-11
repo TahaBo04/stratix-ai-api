@@ -87,6 +87,8 @@ class BacktestResultResponse(BaseModel):
 class HistoryItem(BaseModel):
     strategy_id: str
     strategy_name: str
+    raw_prompt: str
+    service_tier: str
     run_id: str
     status: str
     created_at: datetime

@@ -69,6 +69,8 @@ Deployment notes:
 - `GET /v1/backtests/{run_id}`
 - `GET /v1/backtests/{run_id}/results`
 - `GET /v1/backtests/{run_id}/trades`
+- `POST /v1/backtests/{run_id}/refine`
+- `GET /v1/runs/compare`
 - `GET /v1/history`
 - `GET /v1/admin/health`
 - `GET /v1/admin/jobs`

@@ -1,6 +1,7 @@
 """User repository helpers."""
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -108,3 +109,18 @@ def ensure_demo_user(email: str, password: str) -> dict:
     if existing:
         return existing
     return create_user(email=email, password_hash=hash_password(password), role="demo", full_name="Demo User")
+
+
+def ensure_guest_user(guest_session_id: str) -> dict:
+    digest = hashlib.sha256(guest_session_id.encode("utf-8")).hexdigest()[:24]
+    email = f"guest-{digest}@guest.stratix.ai"
+    existing = get_user_by_email(email)
+    if existing:
+        return existing
+    return create_user(
+        email=email,
+        password_hash=hash_password(guest_session_id),
+        role="demo",
+        username=f"guest-{digest[:12]}",
+        full_name="Guest Workspace",
+    )

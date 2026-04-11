@@ -8,19 +8,28 @@ from uuid import uuid4
 from app.core.database import get_connection
 
 
-def create_strategy(user_id: str, name: str, raw_prompt: str, status: str) -> dict:
+def create_strategy(user_id: str, name: str, raw_prompt: str, status: str, service_tier: str = "simple") -> dict:
     payload = {
         "id": str(uuid4()),
         "user_id": user_id,
         "name": name,
         "raw_prompt": raw_prompt,
+        "service_tier": service_tier,
         "status": status,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     with get_connection() as conn:
         conn.execute(
-            "INSERT INTO strategies (id, user_id, name, raw_prompt, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (payload["id"], payload["user_id"], payload["name"], payload["raw_prompt"], payload["status"], payload["created_at"]),
+            "INSERT INTO strategies (id, user_id, name, raw_prompt, service_tier, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                payload["id"],
+                payload["user_id"],
+                payload["name"],
+                payload["raw_prompt"],
+                payload["service_tier"],
+                payload["status"],
+                payload["created_at"],
+            ),
         )
     return payload
 
@@ -62,17 +71,18 @@ def create_strategy_version(strategy_id: str, version_no: int, spec: dict, compi
     }
 
 
-def update_strategy(strategy_id: str, *, name: str | None = None, raw_prompt: str | None = None, status: str | None = None) -> dict | None:
+def update_strategy(strategy_id: str, *, name: str | None = None, raw_prompt: str | None = None, service_tier: str | None = None, status: str | None = None) -> dict | None:
     current = get_strategy(strategy_id)
     if current is None:
         return None
     current["name"] = name or current["name"]
     current["raw_prompt"] = raw_prompt or current["raw_prompt"]
+    current["service_tier"] = service_tier or current.get("service_tier", "simple")
     current["status"] = status or current["status"]
     with get_connection() as conn:
         conn.execute(
-            "UPDATE strategies SET name = ?, raw_prompt = ?, status = ? WHERE id = ?",
-            (current["name"], current["raw_prompt"], current["status"], strategy_id),
+            "UPDATE strategies SET name = ?, raw_prompt = ?, service_tier = ?, status = ? WHERE id = ?",
+            (current["name"], current["raw_prompt"], current["service_tier"], current["status"], strategy_id),
         )
     return current
 
